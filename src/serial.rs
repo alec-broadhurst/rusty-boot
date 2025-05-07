@@ -1,4 +1,4 @@
-use core::ptr::write_volatile;
+use core::ptr::{read_volatile, write_volatile};
 
 // serial configuration
 const FOSC: u32 = 16_000_000; // clock speed (16MHz, no prescaler)
@@ -9,18 +9,36 @@ const UBRR: u32 = FOSC / (16 * BAUD) - 1; // baud rate register value
 const UBRR0H: *mut u8 = 0xC5 as *mut u8; // USART Baud Rate Register High
 const UBRR0L: *mut u8 = 0xC4 as *mut u8; // USART Baud Rate Register Low
 const UCSR0B: *mut u8 = 0xC1 as *mut u8; // USART Control and Status Register B
+const UCSR0A: *mut u8 = 0xC0 as *mut u8; // USART Control and Status Register A
+const UDR0: *mut u8 = 0xC6 as *mut u8; // USART Data Register
 
 // bit definitions
 const RXEN0: u8 = 1 << 4; // receiver Enable bit
+const RXC0: u8 = 1 << 7; // receiver Complete flag
 
-// function to initialize the UART
-pub fn init() {
-    unsafe {
-        // set baud rate
-        write_volatile(UBRR0L, UBRR as u8); // set low byte
-        write_volatile(UBRR0H, (UBRR >> 8) as u8); // set high byte
+pub struct Serial;
 
-        // enable receiver
-        write_volatile(UCSR0B, RXEN0);
+impl Serial {
+    // function to initialize the USART0
+    pub fn init() {
+        unsafe {
+            // set baud rate
+            write_volatile(UBRR0L, UBRR as u8); // set low byte
+            write_volatile(UBRR0H, (UBRR >> 8) as u8); // set high byte
+
+            // enable receiver
+            write_volatile(UCSR0B, RXEN0);
+        }
+    }
+
+    // function to read a byte from the UART
+    pub fn read_byte() -> u8 {
+        unsafe {
+            // wait for data to be received
+            while read_volatile(UCSR0A) & RXC0 == 0 {}
+
+            // get and return received data from the buffer
+            read_volatile(UDR0)
+        }
     }
 }
