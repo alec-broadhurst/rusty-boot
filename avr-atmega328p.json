@@ -10,13 +10,7 @@
   "linker": "avr-gcc",
   "eh-frame-header": false,
   "pre-link-args": {
-    "gcc": [
-      "-mmcu=atmega328p",
-      "-nostartfiles",
-      "-T",
-      "linker.ld",
-      "src/asm/init_memory.S"
-    ]
+    "gcc": ["-mmcu=atmega328p", "-nostartfiles", "-T", "linker.ld"]
   },
   "exe-suffix": ".elf",
   "os": "none",
