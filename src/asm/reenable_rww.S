@@ -11,7 +11,7 @@ reenable_rww:
     ldi r16, 0x11       ; prepare to re-enable RWW section
     out SPMCSR, r16     ; clear SPMEN bit to re-enable RWW section
     spm                 ; execute SPM instruction to re-enable RWW section
-    call spm_poll       ; wait until SPM is done
+    rcall spm_poll      ; wait until SPM is done
     out SREG, r18       ; restore status register
     ret                 ; return from function
 
