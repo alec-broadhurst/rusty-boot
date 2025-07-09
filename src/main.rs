@@ -33,7 +33,7 @@ pub extern "C" fn main() -> ! {
             Flash::write_page(page_address, page_buffer.as_ptr());
         }
 
-        page_address += 128;
+        page_address += 64;
     }
 
     unsafe {
