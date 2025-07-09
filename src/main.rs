@@ -37,7 +37,12 @@ pub extern "C" fn main() -> ! {
     }
 
     unsafe {
+        extern "C" {
+            fn jmp_to_app();
+        }
+
         Flash::reenable_rww();
+        jmp_to_app();
     }
 
     loop {}
