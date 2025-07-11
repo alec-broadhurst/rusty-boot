@@ -7,6 +7,7 @@ mod timer;
 
 use flash::Flash;
 use serial::Serial;
+use timer::Timer;
 
 use core::panic::PanicInfo;
 
@@ -17,8 +18,33 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn main() -> ! {
-    // Initialize serial
+    // Initialize timer and serial
+    Timer::init();
     Serial::init();
+
+    extern "C" {
+        fn jmp_to_app();
+    }
+
+    let mut has_data = false;
+
+    for _ in 0..500 {
+        if Serial::data_available() {
+            has_data = true;
+            break;
+        };
+
+        Timer::wait_ms(1);
+    }
+
+    if !has_data {
+        unsafe {
+            Flash::reenable_rww();
+            jmp_to_app();
+        }
+
+        loop {}
+    }
 
     let mut page_address: u16 = 0x0000;
     let mut page_buffer: [u8; 128] = [0; 128];
@@ -38,10 +64,6 @@ pub extern "C" fn main() -> ! {
     }
 
     unsafe {
-        extern "C" {
-            fn jmp_to_app();
-        }
-
         Flash::reenable_rww();
         jmp_to_app();
     }
