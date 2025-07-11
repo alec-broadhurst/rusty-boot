@@ -41,4 +41,8 @@ impl Serial {
             read_volatile(UDR0)
         }
     }
+
+    pub fn data_available() -> bool {
+        unsafe { read_volatile(UCSR0A) & RXC0 != 0 }
+    }
 }
