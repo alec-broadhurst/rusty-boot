@@ -3,6 +3,7 @@
 
 mod flash;
 mod serial;
+mod timer;
 
 use flash::Flash;
 use serial::Serial;
