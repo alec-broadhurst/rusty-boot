@@ -12,6 +12,7 @@ fn main() {
         "src/asm/spm_poll.S",
         "src/asm/fill_page_buffer.S",
         "src/asm/reenable_rww.S",
+        "src/asm/jmp_to_app.S",
     ] {
         let obj = out.join(src.split('/').last().unwrap().replace(".S", ".o"));
         Command::new("avr-gcc")
