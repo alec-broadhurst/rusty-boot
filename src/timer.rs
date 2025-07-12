@@ -12,24 +12,20 @@ const WGM21: u8 = 1 << 1; // CTC mode bit in TCCR2A
 const CS22: u8 = 1 << 2; // Clock Select bits in TCCR2B
 const OCF2A: u8 = 1 << 1; // Output Compare A Match flag
 
-pub struct Timer;
-
-impl Timer {
-    pub fn init() {
-        unsafe {
-            write_volatile(TCCR2A, WGM21); // set CTC mode
-            write_volatile(TCCR2B, CS22); // set prescaler to 64
-            write_volatile(OCR2A, 249); // set top for 1ms tick
-            write_volatile(TCNT2, 0); // reset counter
-        }
+pub fn init() {
+    unsafe {
+        write_volatile(TCCR2A, WGM21); // set CTC mode
+        write_volatile(TCCR2B, CS22); // set prescaler to 64
+        write_volatile(OCR2A, 249); // set top for 1ms tick
+        write_volatile(TCNT2, 0); // reset counter
     }
+}
 
-    pub fn wait_ms(ms: u16) {
-        for _ in 0..ms {
-            unsafe {
-                write_volatile(TIFR2, OCF2A); // Clear match flag
-                while read_volatile(TIFR2) & OCF2A == 0 {} // Busy-wait until timer reaches OCR2A
-            }
+pub fn wait_ms(ms: u16) {
+    for _ in 0..ms {
+        unsafe {
+            write_volatile(TIFR2, OCF2A); // Clear match flag
+            while read_volatile(TIFR2) & OCF2A == 0 {} // Busy-wait until timer reaches OCR2A
         }
     }
 }

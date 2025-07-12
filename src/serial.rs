@@ -16,33 +16,29 @@ const UDR0: *mut u8 = 0xC6 as *mut u8; // USART Data Register
 const RXEN0: u8 = 1 << 4; // receiver Enable bit
 const RXC0: u8 = 1 << 7; // receiver Complete flag
 
-pub struct Serial;
+// function to initialize the USART0
+pub fn init() {
+    unsafe {
+        // set baud rate
+        write_volatile(UBRR0L, UBRR as u8); // set low byte
+        write_volatile(UBRR0H, (UBRR >> 8) as u8); // set high byte
 
-impl Serial {
-    // function to initialize the USART0
-    pub fn init() {
-        unsafe {
-            // set baud rate
-            write_volatile(UBRR0L, UBRR as u8); // set low byte
-            write_volatile(UBRR0H, (UBRR >> 8) as u8); // set high byte
-
-            // enable receiver
-            write_volatile(UCSR0B, RXEN0);
-        }
+        // enable receiver
+        write_volatile(UCSR0B, RXEN0);
     }
+}
 
-    // function to read a byte from the UART
-    pub fn read_byte() -> u8 {
-        unsafe {
-            // wait for data to be received
-            while read_volatile(UCSR0A) & RXC0 == 0 {}
+// function to read a byte from the UART
+pub fn read_byte() -> u8 {
+    unsafe {
+        // wait for data to be received
+        while read_volatile(UCSR0A) & RXC0 == 0 {}
 
-            // get and return received data from the buffer
-            read_volatile(UDR0)
-        }
+        // get and return received data from the buffer
+        read_volatile(UDR0)
     }
+}
 
-    pub fn data_available() -> bool {
-        unsafe { read_volatile(UCSR0A) & RXC0 != 0 }
-    }
+pub fn data_available() -> bool {
+    unsafe { read_volatile(UCSR0A) & RXC0 != 0 }
 }
