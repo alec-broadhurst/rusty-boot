@@ -5,10 +5,6 @@ mod flash;
 mod serial;
 mod timer;
 
-use flash::Flash;
-use serial::Serial;
-use timer::Timer;
-
 use core::panic::PanicInfo;
 
 #[panic_handler]
@@ -19,8 +15,8 @@ fn panic(_info: &PanicInfo) -> ! {
 #[no_mangle]
 pub extern "C" fn main() -> ! {
     // Initialize timer and serial
-    Timer::init();
-    Serial::init();
+    timer::init();
+    serial::init();
 
     extern "C" {
         fn jmp_to_app();
@@ -29,17 +25,17 @@ pub extern "C" fn main() -> ! {
     let mut has_data = false;
 
     for _ in 0..500 {
-        if Serial::data_available() {
+        if serial::data_available() {
             has_data = true;
             break;
         };
 
-        Timer::wait_ms(1);
+        timer::wait_ms(1);
     }
 
     if !has_data {
         unsafe {
-            Flash::reenable_rww();
+            flash::reenable_rww();
             jmp_to_app();
         }
 
@@ -52,19 +48,19 @@ pub extern "C" fn main() -> ! {
     for _ in (0..0x7530).step_by(128) {
         // fill temp page buffer
         for i in 0..128 {
-            page_buffer[i] = Serial::read_byte();
+            page_buffer[i] = serial::read_byte();
         }
 
         // write page to flash
         unsafe {
-            Flash::write_page(page_address, page_buffer.as_ptr());
+            flash::write_page(page_address, page_buffer.as_ptr());
         }
 
         page_address += 64;
     }
 
     unsafe {
-        Flash::reenable_rww();
+        flash::reenable_rww();
         jmp_to_app();
     }
 
