@@ -1,3 +1,4 @@
+/// Writes a 128-byte page to flash memory at the given word address.
 pub unsafe fn write_page(page_address: u16, buffer_ptr: *const u8) {
     extern "C" {
         fn spm_poll();
@@ -13,6 +14,10 @@ pub unsafe fn write_page(page_address: u16, buffer_ptr: *const u8) {
     write_page(page_address);
 }
 
+/// Re-enables the Read-While-Write (RWW) section of flash.
+///
+/// Should be called after the last page write to restore read access to
+/// the application section of flash memory.
 pub unsafe fn reenable_rww() {
     extern "C" {
         fn reenable_rww();

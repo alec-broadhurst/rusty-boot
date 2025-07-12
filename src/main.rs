@@ -14,7 +14,6 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn main() -> ! {
-    // Initialize timer and serial
     timer::init();
     serial::init();
 
@@ -46,12 +45,10 @@ pub extern "C" fn main() -> ! {
     let mut page_buffer: [u8; 128] = [0; 128];
 
     for _ in (0..0x7530).step_by(128) {
-        // fill temp page buffer
         for i in 0..128 {
             page_buffer[i] = serial::read_byte();
         }
 
-        // write page to flash
         unsafe {
             flash::write_page(page_address, page_buffer.as_ptr());
         }
