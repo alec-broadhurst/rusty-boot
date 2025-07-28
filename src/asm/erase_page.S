@@ -12,6 +12,7 @@ erase_page:
     ldi r18, 3      ; 00000011
     out SPMCSR, r18 ; move 00000011 into SPMCSR
     spm             ; execute SPM instruction to erase the page
+    rcall spm_poll
     out SREG, r19   ; restore status register
     ret
 

@@ -18,6 +18,7 @@ fill_loop:
     ldi r16, 1
     out SPMCSR, r16 ; set SPMEN bit to enable page write
     spm
+    rcall spm_poll
     adiw r30, 2     ; next word address (flash)
     dec r17
     brne fill_loop  ; repeat until all words are written

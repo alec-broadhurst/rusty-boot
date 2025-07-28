@@ -12,6 +12,7 @@ write_page:
     ldi r16, 5
     out SPMCSR, r16 ; set SPMEN bit to enable page write
     spm             ; execute SPM instruction to write the page
+    rcall spm_poll
     out SREG, r19   ; restore status register
     ret
 
