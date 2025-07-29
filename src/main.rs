@@ -46,7 +46,13 @@ pub extern "C" fn main() -> ! {
 
     for _ in (0..0x7530).step_by(128) {
         for i in 0..128 {
-            page_buffer[i] = serial::read_byte();
+            match serial::read_byte(1000) {
+                Some(byte) => page_buffer[i] = byte,
+                None => unsafe {
+                    flash::reenable_rww();
+                    jmp_to_app();
+                },
+            };
         }
 
         unsafe {

@@ -1,3 +1,4 @@
+use crate::timer;
 use core::ptr::{read_volatile, write_volatile};
 
 /// System clock frequency in MHz
@@ -37,15 +38,15 @@ pub fn init() {
 
 /// Reads a byte from the serial interface (blocking).
 ///
-/// This function blocks until a byte has been received.
-pub fn read_byte() -> u8 {
-    unsafe {
-        // wait for data to be received
-        while read_volatile(UCSR0A) & RXC0 == 0 {}
-
-        // return received byte
-        read_volatile(UDR0)
+/// This function blocks until a byte has been received or the timeout is reached.
+pub fn read_byte(timeout_ms: u16) -> Option<u8> {
+    for _ in 0..timeout_ms {
+        if data_available() {
+            return Some(unsafe { read_volatile(UDR0) });
+        }
+        timer::wait_ms(1);
     }
+    None
 }
 
 /// Checks whether data is available to read from USART0.
