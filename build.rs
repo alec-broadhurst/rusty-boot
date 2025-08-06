@@ -7,6 +7,7 @@ fn main() {
     let mcu = "-mmcu=atmega328p";
 
     for src in &[
+        "src/asm/start.S",
         "src/asm/erase_page.S",
         "src/asm/write_page.S",
         "src/asm/spm_poll.S",
