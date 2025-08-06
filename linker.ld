@@ -12,20 +12,6 @@ SECTIONS
         *(.rodata)
         *(.rodata.*)
     } > bootloader
-
-    .data : {
-        __sram_start = .;
-        *(.data)
-        *(.data.*)
-        __sram_end = .;
-    } > sram
-
-    .bss : {
-        __bss_start = .;
-        *(.bss)
-        *(.bss.*)
-        __bss_end = .;
-    } > sram
 }
 
-ENTRY(main)
+ENTRY(start)
