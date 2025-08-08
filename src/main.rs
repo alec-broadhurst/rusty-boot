@@ -44,7 +44,7 @@ pub extern "C" fn main() -> ! {
     let mut page_address: u16 = 0x0000;
     let mut page_buffer: [u8; 128] = [0; 128];
 
-    for _ in (0..0x7530).step_by(128) {
+    for _ in (0..0x7800).step_by(128) {
         for i in 0..128 {
             match serial::read_byte(1000) {
                 Some(byte) => page_buffer[i] = byte,
