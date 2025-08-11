@@ -6,6 +6,10 @@ MEMORY
 
 SECTIONS
 {
+    .vectors ORIGIN(bootloader) : {
+        KEEP(*(.vectors))
+    } > bootloader
+
     .text : {
         *(.text)
         *(.text.*)
