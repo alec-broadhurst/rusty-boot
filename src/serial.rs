@@ -1,81 +1,139 @@
-use crate::timer;
 use core::ptr::{read_volatile, write_volatile};
 
-/// System clock frequency in MHz
+// === System Clock Frequency ===
 const FOSC: u32 = 16_000_000;
 
-/// Baud rate
-const BAUD: u32 = 9600;
-
-/// Calculated UBRR value
-const UBRR: u32 = FOSC / (16 * BAUD) - 1;
-
 // === USART0 Register Addresses ===
-const UDR0: *mut u8 = 0xC6 as *mut u8; // USART Data Register
-const UCSR0A: *mut u8 = 0xC0 as *mut u8; // USART Control and Status Register A
-const UCSR0B: *mut u8 = 0xC1 as *mut u8; // USART Control and Status Register B
-const UCSR0C: *mut u8 = 0xC2 as *mut u8; // USART Control and Status Register C
-const UBRR0L: *mut u8 = 0xC4 as *mut u8; // USART Baud Rate Register Low
-const UBRR0H: *mut u8 = 0xC5 as *mut u8; // USART Baud Rate Register High
+const UCSR0A: *mut u8 = 0xC0 as *mut u8;
+const UCSR0B: *mut u8 = 0xC1 as *mut u8;
+const UCSR0C: *mut u8 = 0xC2 as *mut u8;
+const UBRR0L: *mut u8 = 0xC4 as *mut u8;
+const UBRR0H: *mut u8 = 0xC5 as *mut u8;
+const UDR0: *mut u8 = 0xC6 as *mut u8;
 
-// === Bit Masks ===
-const TXEN0: u8 = 1 << 3; // transmitter Enable bit
-const RXEN0: u8 = 1 << 4; // receiver Enable bit
-const RXC0: u8 = 1 << 7; // receiver Complete flag
-const TXC0: u8 = 1 << 6; // transmit Complete flag
-const UDRE0: u8 = 1 << 5; // USART Data Register Empty flag
+// === Bit positions ===
+// UCSR0A
+const U2X0: u8 = 1;
+const UDRE0: u8 = 5;
 
-/// Initializes USART0 for receiving at 9600 baud.
-///
-/// Only the receiver is enabled. This function must be called before
-/// using [`read_byte`] or [`data_available`].
-pub fn init() {
+// UCSR0B
+const TXEN0: u8 = 3;
+const RXEN0: u8 = 4;
+const UDRIE0: u8 = 5;
+const RXCIE0: u8 = 7;
+
+// UCSR0C
+const UCSZ00: u8 = 1;
+const UCSZ01: u8 = 2;
+
+static mut RX_BUFFER: RingBuffer = RingBuffer::new();
+static mut TX_BUFFER: RingBuffer = RingBuffer::new();
+
+extern "C" {
+    fn cli();
+    fn restore_sreg();
+}
+
+pub fn init(baud: u32) {
+    let (ubbr_val, use_double_speed) = match (FOSC / (8 * baud) - 1) as u16 {
+        val if val > 0x0FFF => ((FOSC / (16 * baud) - 1) as u16, false),
+        val => (val, true),
+    };
+
     unsafe {
-        // set baud rate
-        write_volatile(UBRR0L, UBRR as u8); // set low byte
-        write_volatile(UBRR0H, (UBRR >> 8) as u8); // set high byte
-        write_volatile(UCSR0C, 0x06); // set 8 data bits, no parity, 1 stop bit
+        write_volatile(UCSR0A, if use_double_speed { 1 << U2X0 } else { 0 });
 
-        // enable receiver and transmitter
-        write_volatile(UCSR0B, RXEN0 | TXEN0);
+        write_volatile(UBRR0H, (ubbr_val >> 8) as u8);
+        write_volatile(UBRR0L, ubbr_val as u8);
+
+        write_volatile(UCSR0C, 1 << UCSZ00 | 1 << UCSZ01);
+
+        write_volatile(UCSR0B, 1 << TXEN0 | 1 << RXEN0 | 1 << RXCIE0);
+
+        let _ = read_volatile(UDR0);
     }
 }
 
-/// Reads a byte from the serial interface (blocking).
-///
-/// This function blocks until a byte has been received or the timeout is reached.
-pub fn read_byte(timeout_ms: u16) -> Option<u8> {
-    for _ in 0..timeout_ms {
-        if data_available() {
-            return Some(unsafe { read_volatile(UDR0) });
-        }
-        timer::wait_ms(1);
-    }
-    None
+pub fn read_byte() -> Option<u8> {
+    critical_section(|| unsafe { RX_BUFFER.pop() })
 }
 
-/// Sends a byte over the serial interface (blocking).
-///
-/// This function blocks until the byte has been sent and the data register is empty.
 pub fn send_byte(data: u8) {
+    critical_section(|| unsafe {
+        if TX_BUFFER.head == TX_BUFFER.tail && (read_volatile(UCSR0A) & (1 << UDRE0)) != 0 {
+            write_volatile(UDR0, data);
+        } else {
+            TX_BUFFER.push(data);
+            let ucsrb = read_volatile(UCSR0B);
+            write_volatile(UCSR0B, ucsrb | 1 << UDRIE0);
+        }
+    })
+}
+
+fn critical_section<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R,
+{
     unsafe {
-        // Clear TXC0 by writing 1 before sending data
-        write_volatile(UCSR0A, TXC0);
-
-        // Wait for empty transmit buffer
-        while read_volatile(UCSR0A) & UDRE0 == 0 {}
-
-        // Load data
-        write_volatile(UDR0, data);
-
-        // Wait for transmission complete
-        while read_volatile(UCSR0A) & TXC0 == 0 {}
+        cli();
+        let result = f();
+        restore_sreg();
+        result
     }
 }
 
-/// Checks whether data is available to read from USART0.
-///
-/// Returns `true` if a byte has been received.
-pub fn data_available() -> bool {
-    unsafe { read_volatile(UCSR0A) & RXC0 != 0 }
+#[no_mangle]
+pub extern "C" fn USART_RX_vect() {
+    unsafe {
+        let byte = read_volatile(UDR0);
+        RX_BUFFER.push(byte);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn USART_UDRE_vect() {
+    unsafe {
+        if let Some(byte) = TX_BUFFER.pop() {
+            write_volatile(UDR0, byte);
+        } else {
+            let ucsrb = read_volatile(UCSR0B);
+            write_volatile(UCSR0B, ucsrb & !(1 << UDRIE0));
+        }
+    }
+}
+
+pub struct RingBuffer {
+    buffer: [u8; 64],
+    head: usize,
+    tail: usize,
+}
+
+impl RingBuffer {
+    pub const fn new() -> Self {
+        RingBuffer {
+            buffer: [0; 64],
+            head: 0,
+            tail: 0,
+        }
+    }
+
+    pub fn push(&mut self, byte: u8) {
+        let next_head = (self.head + 1) % self.buffer.len();
+        if next_head != self.tail {
+            self.buffer[self.head] = byte;
+            self.head = next_head;
+        } else {
+            // Buffer full, maybe discard or overwrite oldest?
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<u8> {
+        if self.head == self.tail {
+            None
+        } else {
+            let byte = self.buffer[self.tail];
+            self.tail = (self.tail + 1) % self.buffer.len();
+            Some(byte)
+        }
+    }
 }
