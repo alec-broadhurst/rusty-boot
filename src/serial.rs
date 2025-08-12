@@ -104,8 +104,8 @@ pub extern "C" fn USART_UDRE_vect() {
 
 pub struct RingBuffer {
     buffer: [u8; 64],
-    head: usize,
-    tail: usize,
+    head: u8,
+    tail: u8,
 }
 
 impl RingBuffer {
@@ -117,22 +117,22 @@ impl RingBuffer {
         }
     }
 
+    #[inline(always)]
     pub fn push(&mut self, byte: u8) {
-        let next_head = (self.head + 1) % self.buffer.len();
+        let next_head = self.head.wrapping_add(1) & 63;
         if next_head != self.tail {
-            self.buffer[self.head] = byte;
+            self.buffer[self.head as usize] = byte;
             self.head = next_head;
-        } else {
-            // Buffer full, maybe discard or overwrite oldest?
         }
     }
 
+    #[inline(always)]
     pub fn pop(&mut self) -> Option<u8> {
         if self.head == self.tail {
             None
         } else {
-            let byte = self.buffer[self.tail];
-            self.tail = (self.tail + 1) % self.buffer.len();
+            let byte = self.buffer[self.tail as usize];
+            self.tail = self.tail.wrapping_add(1) & 63;
             Some(byte)
         }
     }
