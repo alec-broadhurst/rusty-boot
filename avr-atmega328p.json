@@ -10,7 +10,13 @@
   "linker": "avr-gcc",
   "eh-frame-header": false,
   "pre-link-args": {
-    "gcc": ["-mmcu=atmega328p", "-nostartfiles", "-T", "linker.ld"]
+    "gcc": [
+      "-mmcu=atmega328p",
+      "-nostartfiles",
+      "-T",
+      "linker.ld",
+      "src/asm/vectors.S"
+    ]
   },
   "exe-suffix": ".elf",
   "os": "none",
