@@ -23,6 +23,7 @@ fn main() {
     build
         .compiler("avr-gcc")
         .archiver("avr-ar")
+        .include("src/asm")
         .flag("-mmcu=atmega328p")
         .compile("asm");
 }
