@@ -65,6 +65,7 @@ fill_loop:
     dec r17
     brne fill_loop
     out SREG, r19
+    clr r1
     ret
 
 .size fill_page_buffer, .-fill_page_buffer
