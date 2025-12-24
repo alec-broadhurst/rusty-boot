@@ -32,4 +32,4 @@ SECTIONS
   __data_load_end = __data_load_start + SIZEOF(.data);
 }
 
-ENTRY(start)
+ENTRY(vectors)
