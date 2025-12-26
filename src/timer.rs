@@ -5,7 +5,7 @@ const TCCR2A: *mut u8 = 0xB0 as *mut u8; // Timer/Counter Control Register A
 const TCCR2B: *mut u8 = 0xB1 as *mut u8; // Timer/Counter Control Register B
 const TCNT2: *mut u8 = 0xB2 as *mut u8; // Timer/Counter Value Register
 const OCR2A: *mut u8 = 0xB3 as *mut u8; // Output Compare Register A
-const TIFR2: *mut u8 = 0x17 as *mut u8; // Timer/Counter Interrupt Flag Register
+const TIFR2: *mut u8 = 0x37 as *mut u8; // Timer/Counter Interrupt Flag Register
 
 // === Bit Masks ===
 const WGM21: u8 = 1 << 1; // Enable CTC mode
