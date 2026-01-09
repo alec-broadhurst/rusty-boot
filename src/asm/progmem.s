@@ -9,7 +9,7 @@
 
 write_page:
     movw r30, r24
-    ldi r16, 0x05
+    ldi r16, (1<<PGWRT) | (1<<SPMEN)
     out SPMCSR, r16
     spm
     rcall spm_poll
@@ -26,13 +26,31 @@ write_page:
 
 erase_page:
     movw r30, r24
-    ldi r18, 0x03
-    out SPMCSR, r18
+    ldi r16, (1<<PGERS) | (1<<SPMEN)
+    out SPMCSR, r16
     spm
     rcall spm_poll
     ret
 
 .size erase_page, .-erase_page
+
+
+;--------------------------------------------------------
+; Write Word to Buffer
+;--------------------------------------------------------
+.global word_to_buf
+.type word_to_buf, @function
+
+word_to_buf:
+    movw r0, r24
+    movw r30, r22
+    ldi r16, 0x01
+    out SPMCSR, r16
+    spm
+    clr r1
+    ret
+
+.size word_to_buf, .-word_to_buf
 
 
 ;--------------------------------------------------------
@@ -52,7 +70,6 @@ fill_loop:
     ldi r16, 0x01
     out SPMCSR, r16
     spm
-    rcall spm_poll
     adiw r30, 2
     dec r17
     brne fill_loop
@@ -69,7 +86,7 @@ fill_loop:
 .type reenable_rww, @function
 
 reenable_rww:
-    ldi r16, 0x11
+    ldi r16, (1<<RWWSRE) | (1<<SPMEN)
     out SPMCSR, r16
     spm
     rcall spm_poll
@@ -85,9 +102,21 @@ reenable_rww:
 .type spm_poll, @function
 
 spm_poll:
-    in r24, SPMCSR
-    sbrc r24, 0
+    in r16, SPMCSR
+    sbrc r16, SPMEN
     rjmp spm_poll
+    clr r1
     ret
 
 .size spm_poll, .-spm_poll
+
+
+;--------------------------------------------------------
+; EEPROM Poll
+;--------------------------------------------------------
+.global wait_ee
+.type wait_ee, @function
+
+wait_ee:
+    sbic EECR, EEPE
+    rjmp wait_ee

@@ -18,6 +18,7 @@ const SREG: *mut u8 = 0x5F as *mut u8;
 // UCSR0A
 const U2X0: u8 = 1;
 const UDRE0: u8 = 5;
+const TXC0: u8 = 6;
 const RXC0: u8 = 7;
 
 // UCSR0B
@@ -57,10 +58,10 @@ pub fn init(baud: u32) {
     }
 }
 
-pub fn read_byte() -> Option<u8> {
+pub fn read_byte() -> u8 {
     unsafe {
         while (read_volatile(UCSR0A) & (1 << RXC0)) == 0 {}
-        Some(read_volatile(UDR0))
+        read_volatile(UDR0)
     }
 }
 
@@ -68,5 +69,18 @@ pub fn send_byte(data: u8) {
     unsafe {
         while (read_volatile(UCSR0A) & (1 << UDRE0)) == 0 {}
         write_volatile(UDR0, data);
+    }
+}
+
+pub fn flush() {
+    unsafe {
+        // Wait until transmit buffer empty
+        while (read_volatile(UCSR0A) & (1 << UDRE0)) == 0 {}
+
+        // Wait until last bit has left the shift register
+        while (read_volatile(UCSR0A) & (1 << TXC0)) == 0 {}
+
+        // Clear TXC0 by writing a 1 (yes, that's how AVR works)
+        write_volatile(UCSR0A, 1 << TXC0);
     }
 }

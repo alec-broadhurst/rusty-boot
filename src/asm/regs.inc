@@ -56,3 +56,10 @@
 
 .equ WDE, 3           ; Watchdog Enable
 .equ WDCE, 4           ; Watchdog Change Enable
+
+
+;--------------------------------------------------------
+; EEPROM Control
+;--------------------------------------------------------
+.equ EECR, 0x1F
+.equ EEPE, 1

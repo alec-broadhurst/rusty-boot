@@ -91,36 +91,37 @@ pub extern "C" fn main() -> ! {
             }
 
             CMD_STK_READ_PAGE => {
-                let len_hi: u8 = serial::read_byte();
-                let len_lo: u8 = serial::read_byte();
-                let memtype: u8 = serial::read_byte();
-                let _eop: u8 = serial::read_byte();
+                let len_hi = serial::read_byte();
+                let len_lo = serial::read_byte();
+                let memtype = serial::read_byte();
+                let _eop = serial::read_byte();
+
+                let len = ((len_hi as u16) << 8) | len_lo as u16;
 
                 serial::send_byte(RESP_STK_INSYNC);
 
-                let len: u16 = ((len_hi as u16) << 8) | (len_lo as u16);
-                let mut byte_addr: u16 = cur_addr << 1;
-
                 if memtype == b'F' {
-                    let mut z: u16 = byte_addr;
+                    let mut z: u16 = cur_addr << 1;
 
                     for _ in 0..len {
                         let byte: u8;
-
                         unsafe {
                             asm!(
                                 "lpm {b}, Z+",
                                 b = out(reg) byte,
                                 inout("Z") z,
-                                options(nostack)
+                                options(nostack, preserves_flags)
                             );
                         }
-
                         serial::send_byte(byte);
-                        byte_addr += 1;
                     }
 
-                    cur_addr = byte_addr >> 1;
+                    cur_addr = z >> 1;
+                } else {
+                    // EEPROM or unsupported: must still send len bytes
+                    for _ in 0..len {
+                        serial::send_byte(0xFF);
+                    }
                 }
 
                 serial::send_byte(RESP_STK_OK);

@@ -1,23 +1,41 @@
 /// Writes a 128-byte page to flash memory at the given word address.
-pub unsafe fn write_page(page_address: u16, buffer_ptr: *const u8) {
+pub fn program_page(page_address: u16) {
     extern "C" {
-        fn erase_page(page_address: u16);
-        fn fill_page_buffer(word_dest: u16, buffer_ptr: *const u8);
+        fn wait_ee();
+        fn erase_page(word_address: u16);
         fn write_page(page_address: u16);
     }
 
-    erase_page(page_address);
-    fill_page_buffer(page_address, buffer_ptr);
-    write_page(page_address);
+    unsafe {
+        //wait_ee();
+        erase_page(page_address);
+        //wait_ee();
+        write_page(page_address);
+    }
+}
+
+/// Writes a word to the hardware page buffer
+pub fn word_to_buf(word: u16, addr: u16) {
+    extern "C" {
+        fn word_to_buf(word: u16, addr: u16);
+    }
+
+    unsafe {
+        word_to_buf(word, addr);
+    }
 }
 
 /// Re-enables the Read-While-Write (RWW) section of flash.
 ///
 /// Should be called after the last page write to restore read access to
 /// the application section of flash memory.
-pub unsafe fn reenable_rww() {
+pub fn reenable_rww() {
     extern "C" {
+        //fn wait_ee();
         fn reenable_rww();
     }
-    reenable_rww();
+
+    unsafe {
+        reenable_rww();
+    }
 }
