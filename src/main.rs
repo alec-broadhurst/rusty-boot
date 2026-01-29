@@ -62,16 +62,6 @@ pub extern "C" fn main() -> ! {
                 serial::send_byte(RESP_STK_OK);
             }
 
-            /*
-             * This is UUUGE!
-             * Freakin assembly is clobbering r16.
-             * r16 just so happens to be Rust's spot
-             * for usart data register, so when reading
-             * 0x03 at every byte after the write, its because the
-             * asm writes 0x03 to r16 for write, then overwrites the
-             * freakin usart register that contains the byte to send.
-             * So stop using r16 in asm!
-             */
             CMD_PROG_PAGE => {
                 let len_hi: u8 = serial::read_byte();
                 let len_lo: u8 = serial::read_byte();
