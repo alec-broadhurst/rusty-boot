@@ -1,6 +1,6 @@
 [build]
 target = "avr-none"
-rustflags = ["-Ctarget-cpu=atmega328p", "-Clink-arg=-Wl,--section-start=.text=0x7800"]
+rustflags = ["-Ctarget-cpu=atmega328p", "-Clink-arg=-Tlinker.ld", "-Clink-arg=-nostartfiles"]
 
 [unstable]
 build-std = ["core"]
