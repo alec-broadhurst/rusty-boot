@@ -1,6 +1,6 @@
 .include "regs.inc"
 
-.section .text
+.section .start
 .global start
 .type start, @function
 

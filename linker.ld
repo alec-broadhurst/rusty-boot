@@ -6,7 +6,7 @@ MEMORY
 SECTIONS
 {
   .text : {
-    KEEP(*(.vectors))
+    KEEP(*(.start))
     *(.text)
     *(.text.*)
     *(.rodata)
@@ -14,4 +14,4 @@ SECTIONS
   } > bootloader
 }
 
-ENTRY(vectors)
+ENTRY(start)
