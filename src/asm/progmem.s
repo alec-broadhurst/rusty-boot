@@ -63,7 +63,10 @@ reenable_rww:
     ldi r18, (1<<RWWSRE) | (1<<SPMEN)
     out SPMCSR, r18
     spm
-    rcall spm_poll
+rww_wait:
+    in r18, SPMCSR
+    sbrc r18, RWWSB ; Wait for RWW section to become ready.
+    rjmp rww_wait
     ret
 
 .size reenable_rww, .-reenable_rww

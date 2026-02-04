@@ -54,8 +54,18 @@
 ;--------------------------------------------------------
 .equ WDTCSR, 0x60        ; Watchdog Timer Control Register
 
-.equ WDE, 3           ; Watchdog Enable
+.equ WDP0, 0
+.equ WDP1, 1
+.equ WDP2, 2
+.equ WDE,  3           ; Watchdog Enable
 .equ WDCE, 4           ; Watchdog Change Enable
+.equ WDP3, 5
+
+
+;--------------------------------------------------------
+; USART
+;--------------------------------------------------------
+.equ UCSR0B, 0xC1
 
 
 ;--------------------------------------------------------

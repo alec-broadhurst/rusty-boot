@@ -9,16 +9,22 @@ start:
     clr r1
 
     ;--------------------------------------------------------
-    ; Turn off watchdog timer
+    ; If watchdog reset, jump to app
     ;--------------------------------------------------------
-    wdr
     in r16, MCUSR
-    andi r16, (0xFF & (0 << WDRF))
-    out MCUSR, r16
+    in r17, MCUSR
+    andi r17, 0 << WDRF
+    out MCUSR, r17
+    sbrc r16, WDRF
+    rjmp jmp_to_app
+
+    ;--------------------------------------------------------
+    ; Set watchdog timer
+    ;--------------------------------------------------------
     lds r16, WDTCSR
-    ori r16, (1<<WDCE) | (1<<WDE)
+    ori r16, (1 << WDCE) | (1 << WDE)
     sts WDTCSR, r16
-    ldi r16, (0 << WDE)
+    ldi r16, (1 << WDE) | (1 << WDP2) | (1 << WDP1)
     sts WDTCSR, r16
 
     ;--------------------------------------------------------
@@ -30,16 +36,18 @@ start:
     out SPL, r16
 
     ;--------------------------------------------------------
-    ; Move interrupt vectors to boot section
-    ;--------------------------------------------------------
-    ldi r17, (1 << IVCE)
-    out MCUCR, r17
-    ldi r17, (1 << IVSEL)
-    out MCUCR, r17
-
-    ;--------------------------------------------------------
     ; Jump to Rust main function
     ;--------------------------------------------------------
     rjmp main
 
 .size start, .-start
+
+
+jmp_to_app:
+    lds r16, WDTCSR
+    ori r16, (1 << WDCE) | (1 << WDE)
+    sts WDTCSR, r16
+    ldi r16, (0 << WDE)
+    sts WDTCSR, r16
+
+    jmp 0x0000
