@@ -10,3 +10,8 @@ lto = true
 
 [build-dependencies]
 cc = "1.2.49"
+
+[[bin]]
+name = "rusty-boot"
+test = false
+bench = false
