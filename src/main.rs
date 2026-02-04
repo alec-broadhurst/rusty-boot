@@ -34,7 +34,7 @@ const CMD_READ_SIGNATURE: u8 = 0x75;
 
 #[no_mangle]
 pub extern "C" fn main() -> ! {
-    serial::init(19200);
+    serial::init(115200);
 
     let mut cur_addr: u16 = 0x0000;
 
@@ -132,10 +132,10 @@ pub extern "C" fn main() -> ! {
             }
 
             CMD_STK_UNIVERSAL => {
-                serial::read_byte();
-                serial::read_byte();
-                serial::read_byte();
-                serial::read_byte();
+                let _byte1: u8 = serial::read_byte();
+                let _byte2: u8 = serial::read_byte();
+                let _byte3: u8 = serial::read_byte();
+                let _byte4: u8 = serial::read_byte();
                 let _eop: u8 = serial::read_byte();
 
                 serial::send_byte(RESP_STK_INSYNC);
@@ -158,9 +158,7 @@ pub extern "C" fn main() -> ! {
                 serial::send_byte(RESP_STK_INSYNC);
                 serial::send_byte(RESP_STK_OK);
 
-                unsafe {
-                    asm!("rjmp 0x0000");
-                }
+                loop {}
             }
 
             _ => {
@@ -173,6 +171,10 @@ pub extern "C" fn main() -> ! {
                 serial::send_byte(RESP_STK_INSYNC);
                 serial::send_byte(RESP_STK_OK);
             }
+        }
+
+        unsafe {
+            asm!("wdr");
         }
     }
 }

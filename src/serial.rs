@@ -1,3 +1,4 @@
+use core::arch::asm;
 use core::ptr::{read_volatile, write_volatile};
 
 // === System Clock Frequency ===
@@ -40,11 +41,8 @@ const UMSEL01: u8 = 7;
 
 pub fn init(baud: u32) {
     unsafe {
-        // Calculate UBRR for normal speed (U2X0 = 0)
-        let ubrr: u16 = ((F_CPU / (16u32 * baud)) - 1) as u16;
-
-        let ucsra = read_volatile(UCSR0A);
-        write_volatile(UCSR0A, ucsra & !(1 << U2X0));
+        let ubrr: u16 = ((F_CPU / (8u32 * baud)) - 1) as u16;
+        write_volatile(UCSR0A, 1 << U2X0);
 
         // Set baud rate
         write_volatile(UBRR0H, (ubrr >> 8) as u8);
@@ -58,6 +56,7 @@ pub fn init(baud: u32) {
     }
 }
 
+#[inline(never)]
 pub fn read_byte() -> u8 {
     unsafe {
         while (read_volatile(UCSR0A) & (1 << RXC0)) == 0 {}
@@ -65,22 +64,10 @@ pub fn read_byte() -> u8 {
     }
 }
 
+#[inline(never)]
 pub fn send_byte(data: u8) {
     unsafe {
         while (read_volatile(UCSR0A) & (1 << UDRE0)) == 0 {}
         write_volatile(UDR0, data);
-    }
-}
-
-pub fn flush() {
-    unsafe {
-        // Wait until transmit buffer empty
-        while (read_volatile(UCSR0A) & (1 << UDRE0)) == 0 {}
-
-        // Wait until last bit has left the shift register
-        while (read_volatile(UCSR0A) & (1 << TXC0)) == 0 {}
-
-        // Clear TXC0 by writing a 1 (yes, that's how AVR works)
-        write_volatile(UCSR0A, 1 << TXC0);
     }
 }
