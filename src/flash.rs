@@ -1,16 +1,14 @@
 /// Writes a 128-byte page to flash memory at the given word address.
 pub fn program_page(page_address: u16) {
     extern "C" {
-        fn wait_ee();
         fn erase_page(word_address: u16);
         fn write_page(page_address: u16);
     }
 
     unsafe {
-        //wait_ee();
         erase_page(page_address);
-        //wait_ee();
         write_page(page_address);
+        reenable_rww();
     }
 }
 
@@ -31,7 +29,6 @@ pub fn word_to_buf(word: u16, addr: u16) {
 /// the application section of flash memory.
 pub fn reenable_rww() {
     extern "C" {
-        //fn wait_ee();
         fn reenable_rww();
     }
 
