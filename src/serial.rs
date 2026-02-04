@@ -1,4 +1,3 @@
-use core::arch::asm;
 use core::ptr::{read_volatile, write_volatile};
 
 // === System Clock Frequency ===
