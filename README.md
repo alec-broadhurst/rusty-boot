@@ -1,34 +1,46 @@
 # rusty-boot
 
-A bootloader for the Arduino Uno R3 written in Rust and Assembly.
-This project targets the ATmega328P microcontroller and implements a minimal UART-based flashing protocol.
+![rusty-boot](rusty-boot.png)
+
+A minimal bootloader for the Arduino Uno R3 written in Rust and AVR assembly.
+This project implements the AVR STK500v1 protocol used by avrdude. It was built as a learning exercise in embedded Rust and makes several simplifying assumptions. It is intended only for the ATmega328P.
 
 ---
 
 ## Features
 
-- Written in Rust and AVR Assembly with direct hardware register access
-- Occupies a 2 KB bootloader section
-- Waits briefly for serial input, then jumps to the main application if none is received
-- Specifically designed for the Arduino Uno R3 (ATmega328P)
+- Implemented in Rust and AVR assembly with direct hardware register access
+- Fits within the 1 KB bootloader section
+- Supports flashing and launching user applications via `avrdude`
+- Designed specifically for Arduino Uno R3 hardware
+- Uses the `avr-gcc` toolchain for linking and assembling
 
-> **Note**: You must configure AVR fuse bits to reserve the upper 2 KB of flash for the bootloader.
+---
+
+## Requirements
+
+- Arduino Uno R3
+- `avr-gcc` toolchain
+- `avrdude`
+- Make
+
+> **Important:** AVR fuse bits must be configured to reserve the upper 1 KB of flash for the bootloader.
 
 ---
 
 ## Building
 
-Compile the project using either `make` or `cargo`:
-
+Build the bootloader and generate the `.hex` file:
 ```bash
 make
 ```
-or
-```bash
-cargo build --release
-```
 
-Then convert the ELF output to Intel HEX format for flashing:
+---
+
+## Flashing
+
+Flash the bootloader using an external programmer and `avrdude`:
 ```bash
-avr-objcopy -O ihex target/avr-atmega328p/release/rusty-boot.elf rusty-boot.hex
+make flash
 ```
+> **Note**: A hardware programmer is required to burn the bootloader.
