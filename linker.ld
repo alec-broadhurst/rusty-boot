@@ -1,6 +1,6 @@
 MEMORY
 {
-  bootloader (rx) : ORIGIN = 0x7800, LENGTH = 0x800
+  bootloader (rx) : ORIGIN = 0x7C00, LENGTH = 0x800
 }
 
 SECTIONS
