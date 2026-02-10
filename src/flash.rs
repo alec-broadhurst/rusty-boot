@@ -1,38 +1,31 @@
-/// Writes a 128-byte page to flash memory at the given word address.
-pub fn program_page(page_address: u16) {
-    extern "C" {
-        fn erase_page(word_address: u16);
-        fn write_page(page_address: u16);
-    }
+use core::arch::asm;
 
-    unsafe {
-        erase_page(page_address);
-        write_page(page_address);
-        reenable_rww();
-    }
+extern "C" {
+    fn erase_page(word_address: u16);
+    fn write_page(page_address: u16);
+    fn word_to_buf(word: u16, addr: u16);
+    fn reenable_rww();
 }
 
-/// Writes a word to the hardware page buffer
-pub fn word_to_buf(word: u16, addr: u16) {
-    extern "C" {
-        fn word_to_buf(word: u16, addr: u16);
-    }
-
-    unsafe {
-        word_to_buf(word, addr);
-    }
+pub unsafe fn program_page(page_address: u16) {
+    erase_page(page_address);
+    write_page(page_address);
+    reenable_rww();
 }
 
-/// Re-enables the Read-While-Write (RWW) section of flash.
-///
-/// Should be called after the last page write to restore read access to
-/// the application section of flash memory.
-pub fn reenable_rww() {
-    extern "C" {
-        fn reenable_rww();
-    }
+pub unsafe fn write_word(word: u16, addr: u16) {
+    word_to_buf(word, addr);
+}
 
-    unsafe {
-        reenable_rww();
-    }
+pub unsafe fn read_byte(addr: u16) -> u8 {
+    let byte: u8;
+
+    asm!(
+        "lpm {b}, Z",
+        b = out(reg) byte,
+        in("Z") addr,
+        options(nostack, preserves_flags)
+    );
+
+    byte
 }
