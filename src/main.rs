@@ -7,7 +7,8 @@ use core::panic::PanicInfo;
 
 mod flash;
 mod serial;
-mod timer;
+
+use serial::Serial;
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
@@ -19,157 +20,171 @@ pub extern "C" fn abort() -> ! {
     loop {}
 }
 
-// === STK500v1 command and response values ===
-const RESP_STK_OK: u8 = 0x10;
-const RESP_STK_INSYNC: u8 = 0x14;
-const EOP: u8 = 0x20;
-const CMD_GET_SYNC: u8 = 0x30;
-const CMD_GET_PARAMETER: u8 = 0x41;
-const CMD_LEAVE_PROGMODE: u8 = 0x51;
-const CMD_LOAD_ADDR: u8 = 0x55;
-const CMD_STK_UNIVERSAL: u8 = 0x56;
-const CMD_PROG_PAGE: u8 = 0x64;
-const CMD_STK_READ_PAGE: u8 = 0x74;
-const CMD_READ_SIGNATURE: u8 = 0x75;
+#[repr(u8)]
+enum Response {
+    Ok = 0x10,
+    InSync = 0x14,
+    EndOfPacket = 0x20,
+}
+
+#[repr(u8)]
+enum Command {
+    GetSync = 0x30,
+    GetParameter = 0x41,
+    LeaveProgMode = 0x51,
+    LoadAddr = 0x55,
+    Universal = 0x56,
+    ProgPage = 0x64,
+    ReadPage = 0x74,
+    ReadSignature = 0x75,
+    Unknown = 0xFF,
+}
+
+impl From<u8> for Command {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x30 => Command::GetSync,
+            0x41 => Command::GetParameter,
+            0x51 => Command::LeaveProgMode,
+            0x55 => Command::LoadAddr,
+            0x56 => Command::Universal,
+            0x64 => Command::ProgPage,
+            0x74 => Command::ReadPage,
+            0x75 => Command::ReadSignature,
+            _ => Command::Unknown,
+        }
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn main() -> ! {
-    serial::init(115200);
+    let mut serial: Serial = Serial::new(115200);
 
     let mut cur_addr: u16 = 0x0000;
 
     loop {
-        let cmd_byte: u8 = serial::read_byte();
+        let cmd_byte: Command = Command::from(serial.read_byte());
 
         match cmd_byte {
-            CMD_GET_SYNC => {
-                let _eop: u8 = serial::read_byte();
+            Command::GetSync => {
+                let _eop: u8 = serial.read_byte();
 
-                serial::send_byte(RESP_STK_INSYNC);
-                serial::send_byte(RESP_STK_OK);
+                serial.send_byte(Response::InSync as u8);
+                serial.send_byte(Response::Ok as u8);
             }
 
-            CMD_LOAD_ADDR => {
-                let addr_lo: u8 = serial::read_byte();
-                let addr_hi: u8 = serial::read_byte();
+            Command::LoadAddr => {
+                let addr_lo: u8 = serial.read_byte();
+                let addr_hi: u8 = serial.read_byte();
 
                 cur_addr = (((addr_hi as u16) << 8) | addr_lo as u16) << 1;
                 cur_addr &= !0x7F;
 
-                let _eop: u8 = serial::read_byte();
+                let _eop: u8 = serial.read_byte();
 
-                serial::send_byte(RESP_STK_INSYNC);
-                serial::send_byte(RESP_STK_OK);
+                serial.send_byte(Response::InSync as u8);
+                serial.send_byte(Response::Ok as u8);
             }
 
-            CMD_PROG_PAGE => {
-                let len_hi: u8 = serial::read_byte();
-                let len_lo: u8 = serial::read_byte();
-                let memtype: u8 = serial::read_byte();
+            Command::ProgPage => {
+                let len_hi: u8 = serial.read_byte();
+                let len_lo: u8 = serial.read_byte();
+                let memtype: u8 = serial.read_byte();
 
                 let len: u16 = (len_hi as u16) << 8 | len_lo as u16;
 
                 for i in (0..len).step_by(2) {
-                    let word_lo: u8 = serial::read_byte();
-                    let word_hi: u8 = serial::read_byte();
+                    let word_lo: u8 = serial.read_byte();
+                    let word_hi: u8 = serial.read_byte();
                     let word: u16 = ((word_hi as u16) << 8) | word_lo as u16;
 
                     if memtype == b'F' {
-                        flash::word_to_buf(word, cur_addr + i);
+                        unsafe { flash::write_word(word, cur_addr + i) };
                     }
                 }
 
-                let _eop: u8 = serial::read_byte();
+                let _eop: u8 = serial.read_byte();
 
-                serial::send_byte(RESP_STK_INSYNC);
-                flash::program_page(cur_addr);
-                serial::send_byte(RESP_STK_OK);
+                serial.send_byte(Response::InSync as u8);
+                unsafe {
+                    flash::program_page(cur_addr);
+                }
+                serial.send_byte(Response::Ok as u8);
             }
 
-            CMD_STK_READ_PAGE => {
-                let len_hi = serial::read_byte();
-                let len_lo = serial::read_byte();
-                let memtype = serial::read_byte();
-                let _eop = serial::read_byte();
+            Command::ReadPage => {
+                let len_hi = serial.read_byte();
+                let len_lo = serial.read_byte();
+                let memtype = serial.read_byte();
+                let _eop = serial.read_byte();
 
                 let len = ((len_hi as u16) << 8) | len_lo as u16;
 
-                serial::send_byte(RESP_STK_INSYNC);
+                serial.send_byte(Response::InSync as u8);
 
                 if memtype == b'F' {
-                    let mut z: u16 = cur_addr & !0x7F;
-
-                    for _ in 0..len {
-                        let byte: u8;
-                        unsafe {
-                            asm!(
-                                "lpm {b}, Z+",
-                                b = out(reg) byte,
-                                inout("Z") z,
-                                options(nostack, preserves_flags)
-                            );
-                        }
-                        serial::send_byte(byte);
+                    for i in 0..len {
+                        let mem_byte: u8 = unsafe { flash::read_byte(cur_addr + i) };
+                        serial.send_byte(mem_byte);
                     }
-
-                    cur_addr = z;
                 }
 
-                serial::send_byte(RESP_STK_OK);
+                serial.send_byte(Response::Ok as u8);
             }
 
-            CMD_READ_SIGNATURE => {
-                let _eop = serial::read_byte();
+            Command::ReadSignature => {
+                let _eop = serial.read_byte();
 
-                serial::send_byte(RESP_STK_INSYNC);
+                serial.send_byte(Response::InSync as u8);
 
                 /* atmega328p signature */
-                serial::send_byte(0x1E);
-                serial::send_byte(0x95);
-                serial::send_byte(0x0F);
+                serial.send_byte(0x1E);
+                serial.send_byte(0x95);
+                serial.send_byte(0x0F);
 
-                serial::send_byte(RESP_STK_OK);
+                serial.send_byte(Response::Ok as u8);
             }
 
-            CMD_STK_UNIVERSAL => {
-                let _byte1: u8 = serial::read_byte();
-                let _byte2: u8 = serial::read_byte();
-                let _byte3: u8 = serial::read_byte();
-                let _byte4: u8 = serial::read_byte();
-                let _eop: u8 = serial::read_byte();
+            Command::Universal => {
+                let _byte1: u8 = serial.read_byte();
+                let _byte2: u8 = serial.read_byte();
+                let _byte3: u8 = serial.read_byte();
+                let _byte4: u8 = serial.read_byte();
+                let _eop: u8 = serial.read_byte();
 
-                serial::send_byte(RESP_STK_INSYNC);
-                serial::send_byte(0x03);
-                serial::send_byte(RESP_STK_OK);
+                serial.send_byte(Response::InSync as u8);
+                serial.send_byte(0x03);
+                serial.send_byte(Response::Ok as u8);
             }
 
-            CMD_GET_PARAMETER => {
-                let _parameter: u8 = serial::read_byte();
-                let _eop: u8 = serial::read_byte();
+            Command::GetParameter => {
+                let _parameter: u8 = serial.read_byte();
+                let _eop: u8 = serial.read_byte();
 
-                serial::send_byte(RESP_STK_INSYNC);
-                serial::send_byte(0x00);
-                serial::send_byte(RESP_STK_OK);
+                serial.send_byte(Response::InSync as u8);
+                serial.send_byte(0x00);
+                serial.send_byte(Response::Ok as u8);
             }
 
-            CMD_LEAVE_PROGMODE => {
-                let _eop = serial::read_byte();
+            Command::LeaveProgMode => {
+                let _eop = serial.read_byte();
 
-                serial::send_byte(RESP_STK_INSYNC);
-                serial::send_byte(RESP_STK_OK);
+                serial.send_byte(Response::InSync as u8);
+                serial.send_byte(Response::Ok as u8);
 
+                // force a watchdog reset
                 loop {}
             }
 
-            _ => {
-                let mut byte: u8 = serial::read_byte();
+            Command::Unknown => {
+                let mut byte: u8 = serial.read_byte();
 
-                while byte != EOP {
-                    byte = serial::read_byte();
+                while byte != Response::EndOfPacket as u8 {
+                    byte = serial.read_byte();
                 }
 
-                serial::send_byte(RESP_STK_INSYNC);
-                serial::send_byte(RESP_STK_OK);
+                serial.send_byte(Response::InSync as u8);
+                serial.send_byte(Response::Ok as u8);
             }
         }
 
